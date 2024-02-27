@@ -18,3 +18,11 @@ install: build
 .PHONY: testacc
 testacc:
 	TF_ACC=1 go test ./... -v $(TESTARGS) -timeout 120m
+
+# Build and run the example code
+.PHONY: example
+example: install
+	cd terraform-gotify-test && \
+		rm -rf .terraform .terraform.lock.hcl terraform.tfstate && \
+		terraform init && \
+		TF_LOG=INFO terraform apply -auto-approve
