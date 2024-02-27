@@ -25,8 +25,8 @@ type ScaffoldingProvider struct {
 	version string
 }
 
-// ScaffoldingProviderModel describes the provider data model.
-type ScaffoldingProviderModel struct {
+// GotifyProviderModel describes the provider data model.
+type GotifyProviderModel struct {
 	Token types.String `tfsdk:"token"`
 	Url   types.String `tfsdk:"url"`
 }
@@ -41,18 +41,19 @@ func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaReq
 		Attributes: map[string]schema.Attribute{
 			"token": schema.StringAttribute{
 				MarkdownDescription: "Token of Gotify Client",
+				Required:            true,
 				Optional:            false,
 			},
 			"url": schema.StringAttribute{
 				MarkdownDescription: "Example provider attribute",
-				Optional:            false,
+				Required:            true,
 			},
 		},
 	}
 }
 
 func (p *ScaffoldingProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data ScaffoldingProviderModel
+	var data GotifyProviderModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
