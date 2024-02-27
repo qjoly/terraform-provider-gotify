@@ -7,7 +7,10 @@ terraform {
   }
 }
 
-provider "gotify" {}
+provider "gotify" {
+  token = "Cb8BYpDHqLp9Rxd"
+  url = "http://localhost:8080"
+}
 
 resource "gotify_application" "flux" {
   description = "Je veux une belle description pour mon application"
