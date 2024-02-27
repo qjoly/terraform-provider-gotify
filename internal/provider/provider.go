@@ -27,7 +27,8 @@ type ScaffoldingProvider struct {
 
 // ScaffoldingProviderModel describes the provider data model.
 type ScaffoldingProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+	Token types.String `tfsdk:"token"`
+	Url   types.String `tfsdk:"url"`
 }
 
 func (p *ScaffoldingProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -38,9 +39,13 @@ func (p *ScaffoldingProvider) Metadata(ctx context.Context, req provider.Metadat
 func (p *ScaffoldingProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"endpoint": schema.StringAttribute{
+			"token": schema.StringAttribute{
+				MarkdownDescription: "Token of Gotify Client",
+				Optional:            false,
+			},
+			"url": schema.StringAttribute{
 				MarkdownDescription: "Example provider attribute",
-				Optional:            true,
+				Optional:            false,
 			},
 		},
 	}
