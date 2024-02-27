@@ -9,7 +9,7 @@ terraform {
 
 provider "gotify" {}
 
-resource "gotify_feed" "flux" {
-  configurable_attribute = "some-value"
-
+resource "gotify_application" "flux" {
+  description = "Je veux une belle description pour mon application"
+  name = "super-nom"
 }

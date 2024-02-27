@@ -19,48 +19,49 @@ import (
 )
 
 // Ensure provider defined types fully satisfy framework interfaces.
-var _ resource.Resource = &ExampleResource{}
-var _ resource.ResourceWithImportState = &ExampleResource{}
+var _ resource.Resource = &ApplicationResource{}
+var _ resource.ResourceWithImportState = &ApplicationResource{}
 
-func NewExampleResource() resource.Resource {
-	return &ExampleResource{}
+func NewApplicationResource() resource.Resource {
+	return &ApplicationResource{}
 }
 
-// ExampleResource defines the resource implementation.
-type ExampleResource struct {
+// ApplicationResource defines the resource implementation.
+type ApplicationResource struct {
 	client *http.Client
 }
 
-// ExampleResourceModel describes the resource data model.
-type ExampleResourceModel struct {
-	ConfigurableAttribute types.String `tfsdk:"configurable_attribute"`
-	Defaulted             types.String `tfsdk:"defaulted"`
-	Id                    types.String `tfsdk:"id"`
+// ApplicationResourceModel describes the resource data model.
+type ApplicationResourceModel struct {
+	Name        types.String `tfsdk:"name"`
+	Description types.String `tfsdk:"description"`
+	Id          types.String `tfsdk:"id"`
 }
 
-func (r *ExampleResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_feed"
+func (r *ApplicationResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_application"
 }
 
-func (r *ExampleResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+func (r *ApplicationResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		// This description is used by the documentation generator and the language server.
-		MarkdownDescription: "Example resource",
+		MarkdownDescription: "Application resource for gotify",
 
 		Attributes: map[string]schema.Attribute{
-			"configurable_attribute": schema.StringAttribute{
-				MarkdownDescription: "Example configurable attribute",
-				Optional:            true,
+			"name": schema.StringAttribute{
+				MarkdownDescription: "Name of the gotify application you want to create",
+				Optional:            false,
+				Required:            true,
 			},
-			"defaulted": schema.StringAttribute{
-				MarkdownDescription: "Example configurable attribute with default value",
+			"description": schema.StringAttribute{
+				MarkdownDescription: "Description of the gotify application",
 				Optional:            true,
 				Computed:            true,
-				Default:             stringdefault.StaticString("example value when not configured"),
+				Default:             stringdefault.StaticString("Description not configured"),
 			},
 			"id": schema.StringAttribute{
 				Computed:            true,
-				MarkdownDescription: "Example identifier",
+				MarkdownDescription: "Application identifier",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
@@ -69,13 +70,18 @@ func (r *ExampleResource) Schema(ctx context.Context, req resource.SchemaRequest
 	}
 }
 
-func (r *ExampleResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+func (r *ApplicationResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	// Prevent panic if the provider has not been configured.
+
 	if req.ProviderData == nil {
+		tflog.Info(ctx, "No informations provided")
 		return
 	}
+	tflog.Info(ctx, "------ Inside Configure ")
 
 	client, ok := req.ProviderData.(*http.Client)
+
+	tflog.Info(ctx, "")
 
 	if !ok {
 		resp.Diagnostics.AddError(
@@ -89,12 +95,16 @@ func (r *ExampleResource) Configure(ctx context.Context, req resource.ConfigureR
 	r.client = client
 }
 
-func (r *ExampleResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var data ExampleResourceModel
+func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var data ApplicationResourceModel
 
 	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 
+	tflog.Info(ctx, "------ Inside Create ")
+
+	tflog.Info(ctx, "NAME: "+data.Name.String())
+	tflog.Info(ctx, "DESC"+data.Description.String())
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -103,14 +113,14 @@ func (r *ExampleResource) Create(ctx context.Context, req resource.CreateRequest
 	// provider client data and make a call using it.
 	// httpResp, err := r.client.Do(httpReq)
 	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create example, got error: %s", err))
+	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Application, got error: %s", err))
 	//     return
 	// }
 
-	// For the purposes of this example code, hardcoding a response value to
+	// For the purposes of this Application code, hardcoding a response value to
 	// save into the Terraform state.
-	data.Id = types.StringValue("example-id")
-
+	data.Id = types.StringValue("Application-id")
+	tflog.Info(ctx, "Hello Toto")
 	// Write logs using the tflog package
 	// Documentation: https://terraform.io/plugin/log
 	tflog.Trace(ctx, "created a resource")
@@ -119,8 +129,8 @@ func (r *ExampleResource) Create(ctx context.Context, req resource.CreateRequest
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func (r *ExampleResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
-	var data ExampleResourceModel
+func (r *ApplicationResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var data ApplicationResourceModel
 
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
@@ -133,7 +143,7 @@ func (r *ExampleResource) Read(ctx context.Context, req resource.ReadRequest, re
 	// provider client data and make a call using it.
 	// httpResp, err := r.client.Do(httpReq)
 	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read example, got error: %s", err))
+	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Application, got error: %s", err))
 	//     return
 	// }
 
@@ -141,8 +151,8 @@ func (r *ExampleResource) Read(ctx context.Context, req resource.ReadRequest, re
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func (r *ExampleResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var data ExampleResourceModel
+func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var data ApplicationResourceModel
 
 	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
@@ -155,7 +165,7 @@ func (r *ExampleResource) Update(ctx context.Context, req resource.UpdateRequest
 	// provider client data and make a call using it.
 	// httpResp, err := r.client.Do(httpReq)
 	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update example, got error: %s", err))
+	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to update Application, got error: %s", err))
 	//     return
 	// }
 
@@ -163,8 +173,8 @@ func (r *ExampleResource) Update(ctx context.Context, req resource.UpdateRequest
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func (r *ExampleResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var data ExampleResourceModel
+func (r *ApplicationResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var data ApplicationResourceModel
 
 	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
@@ -177,11 +187,11 @@ func (r *ExampleResource) Delete(ctx context.Context, req resource.DeleteRequest
 	// provider client data and make a call using it.
 	// httpResp, err := r.client.Do(httpReq)
 	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete example, got error: %s", err))
+	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to delete Application, got error: %s", err))
 	//     return
 	// }
 }
 
-func (r *ExampleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+func (r *ApplicationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
