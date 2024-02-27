@@ -77,11 +77,11 @@ func (r *ApplicationResource) Configure(ctx context.Context, req resource.Config
 		tflog.Info(ctx, "No informations provided")
 		return
 	}
-	tflog.Info(ctx, "------ Inside Configure ")
+	tflog.Info(ctx, "+++++++++++++++")
+
+	tflog.Info(ctx, fmt.Sprintf("%T", req.ProviderData))
 
 	client, ok := req.ProviderData.(*http.Client)
-
-	tflog.Info(ctx, "")
 
 	if !ok {
 		resp.Diagnostics.AddError(
@@ -101,10 +101,10 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 
-	tflog.Info(ctx, "------ Inside Create ")
+	// tflog.Info(ctx, "------ Inside Create ")
 
-	tflog.Info(ctx, "NAME: "+data.Name.String())
-	tflog.Info(ctx, "DESC"+data.Description.String())
+	// tflog.Info(ctx, "NAME: "+data.Name.String())
+	// tflog.Info(ctx, "DESC"+data.Description.String())
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -120,9 +120,7 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	// For the purposes of this Application code, hardcoding a response value to
 	// save into the Terraform state.
 	data.Id = types.StringValue("Application-id")
-	tflog.Info(ctx, "Hello Toto")
-	// Write logs using the tflog package
-	// Documentation: https://terraform.io/plugin/log
+
 	tflog.Trace(ctx, "created a resource")
 
 	// Save data into Terraform state
