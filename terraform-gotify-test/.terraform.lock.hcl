@@ -5,6 +5,6 @@ provider "terraform.local/local/gotify" {
   version     = "0.0.1"
   constraints = "0.0.1"
   hashes = [
-    "h1:0t5ww1zVBm0qdkcJKyc8ES+oWGImq57tCqZ2hettSY4=",
+    "h1:nM9nqVWmklZxDq0DeM5BS3Qqx69WzhjkOUwHiNs/jJY=",
   ]
 }

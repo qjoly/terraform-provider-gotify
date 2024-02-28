@@ -26,6 +26,10 @@ type ApplicationDataSource struct {
 	client *http.Client
 }
 
+type ListApplicationResource struct {
+	ApplicationResourceModel []ApplicationResourceModel
+}
+
 // ApplicationDataSourceModel describes the data source data model.
 type ApplicationDataSourceModel struct {
 	Name        types.String `tfsdk:"name"`
