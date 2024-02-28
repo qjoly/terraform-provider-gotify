@@ -5,8 +5,12 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -24,10 +28,6 @@ func NewApplicationDataSource() datasource.DataSource {
 // ApplicationDataSource defines the data source implementation.
 type ApplicationDataSource struct {
 	client *http.Client
-}
-
-type ListApplicationResource struct {
-	ApplicationResourceModel []ApplicationResourceModel
 }
 
 // ApplicationDataSourceModel describes the data source data model.
@@ -102,17 +102,86 @@ func (d *ApplicationDataSource) Read(ctx context.Context, req datasource.ReadReq
 		return
 	}
 
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := d.client.Do(httpReq)
-	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to read Application, got error: %s", err))
-	//     return
-	// }
+	url := strings.Trim(Config.Url.String(), "\"")
+	token := strings.Trim(Config.Token.String(), "\"")
+	id := strings.Trim(data.Id.String(), "\"")
 
-	// For the purposes of this Application code, hardcoding a response value to
-	// save into the Terraform state.
-	data.Id = types.StringValue("Application-id")
+	httpReq, err := http.NewRequest("GET", url+"/application", nil)
+	if err != nil {
+		tflog.Error(ctx, err.Error())
+		resp.Diagnostics.AddError("Can't send request to Gotify", err.Error())
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-Gotify-Key", token)
+
+	httpRes, err := d.client.Do(httpReq)
+	if err != nil {
+		tflog.Error(ctx, err.Error())
+		resp.Diagnostics.AddError("API Error when contacting Gotify instance", err.Error())
+		return
+	}
+	defer httpRes.Body.Close()
+
+	statusCode := httpRes.StatusCode
+
+	if statusCode == 401 {
+		bodyBytes, _ := io.ReadAll(httpRes.Body)
+		bodyString := string(bodyBytes)
+
+		resp.Diagnostics.AddError("Not Allowed", fmt.Sprintf("Bad token (?) : %s", bodyString))
+		return
+	} else if statusCode != 200 {
+		bodyBytes, _ := io.ReadAll(httpRes.Body)
+		bodyString := string(bodyBytes)
+
+		resp.Diagnostics.AddError("API Error when contacting Gotify instance", fmt.Sprintf("Received a %s response code : %s", strconv.Itoa(statusCode), bodyString))
+		return
+	}
+
+	type JsonReponse []struct {
+		DefaultPriority int64       `json:"defaultPriority"`
+		Description     string      `json:"description"`
+		ID              int64       `json:"id"`
+		Image           string      `json:"image"`
+		Internal        bool        `json:"internal"`
+		LastUsed        interface{} `json:"lastUsed"`
+		Name            string      `json:"name"`
+		Token           string      `json:"token"`
+	}
+
+	var respData JsonReponse
+
+	err = json.NewDecoder(httpRes.Body).Decode(&respData)
+	if err != nil {
+		resp.Diagnostics.AddError("API Error when contacting Gotify instance", err.Error())
+		return
+	}
+
+	tflog.Info(ctx, fmt.Sprintf("Searched id: %s", id))
+
+	ok := false
+	for _, Application := range respData {
+		if strconv.Itoa(int(Application.ID)) == id {
+			ok = true
+			data.Name = types.StringValue(Application.Name)
+			data.Description = types.StringValue(Application.Description)
+			data.Id = types.StringValue(strconv.FormatInt(Application.ID, 10))
+			data.Priority = types.StringValue(strconv.FormatInt(Application.DefaultPriority, 10))
+			data.Token = types.StringValue(Application.Token)
+		}
+	}
+
+	if !ok {
+		resp.Diagnostics.AddError("API Error", "No application found with this id")
+		return
+	}
+
+	// data.Description = types.StringValue("Description")
+	// data.Id = types.StringValue("Application-id")
+	// data.Priority = types.StringValue("Priority")
+	// data.Token = types.StringValue("Token")
+	// data.Name = types.StringValue("Name")
 
 	// Write logs using the tflog package
 	// Documentation: https://terraform.io/plugin/log
