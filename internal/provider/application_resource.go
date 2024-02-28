@@ -45,6 +45,10 @@ type ApplicationResourceModel struct {
 	Token       types.String `tfsdk:"token"`
 }
 
+type ListApplicationResource struct {
+	ApplicationResourceModel []ApplicationResourceModel
+}
+
 func (r *ApplicationResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_application"
 }
@@ -124,27 +128,7 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 	url := strings.Trim(Config.Url.String(), "\"")
 	token := strings.Trim(Config.Token.String(), "\"")
 
-	priority, err := strconv.Atoi(strings.Trim(data.Priority.String(), "\""))
-	if err != nil {
-		tflog.Error(ctx, err.Error())
-		resp.Diagnostics.AddError("Priority cannot be parsed as Int", err.Error())
-		return
-	}
-
-	reqData := map[string]interface{}{
-		"defaultPriority": priority,
-		"description":     strings.Trim(data.Description.String(), "\""),
-		"name":            strings.Trim(data.Name.String(), "\""),
-	}
-
-	jsonData, err := json.Marshal(reqData)
-	if err != nil {
-		tflog.Error(ctx, err.Error())
-		resp.Diagnostics.AddError("Can't convert data to json", err.Error())
-		return
-	}
-
-	httpReq, err := http.NewRequest("POST", url+"/application", bytes.NewBuffer(jsonData))
+	httpReq, err := http.NewRequest("GET", url+"/application", nil)
 	if err != nil {
 		tflog.Error(ctx, err.Error())
 		resp.Diagnostics.AddError("Can't send request to Gotify", err.Error())
@@ -177,12 +161,7 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	type Response struct {
-		ID       int    `json:"id"`
-		Token    string `json:"token"`
-		Internal bool   `json:"internal"`
-	}
-	var respData Response
+	var respData ListApplicationResource
 
 	err = json.NewDecoder(httpRes.Body).Decode(&respData)
 	if err != nil {
@@ -190,10 +169,11 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	data.Id = types.StringValue(strconv.Itoa(respData.ID))
-	data.Token = types.StringValue(respData.Token)
+	for _, Application := range respData.ApplicationResourceModel {
+		tflog.Info(ctx, Application.Id.String())
+	}
 
-	tflog.Info(ctx, "created a resource")
+	tflog.Info(ctx, "Read a resource")
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
