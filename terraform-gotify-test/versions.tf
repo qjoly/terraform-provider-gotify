@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "gotify" {
-  token = "Cw6OrEP3AZ5tuGr"
+  token = "CAZMEZi72TLmRCE"
   url = "http://localhost:8080"
 }
 
@@ -24,5 +24,10 @@ resource "gotify_application" "app2" {
 }
 
 data "gotify_application" "test" {
-  id = "32"
+  id = "4"
+}
+
+# Show output of the data source
+output "test" {
+  value = data.gotify_application.test
 }
