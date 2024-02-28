@@ -4,9 +4,14 @@
 package provider
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -35,7 +40,9 @@ type ApplicationResource struct {
 type ApplicationResourceModel struct {
 	Name        types.String `tfsdk:"name"`
 	Description types.String `tfsdk:"description"`
+	Priority    types.String `tfsdk:"priority"`
 	Id          types.String `tfsdk:"id"`
+	Token       types.String `tfsdk:"token"`
 }
 
 func (r *ApplicationResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -59,7 +66,20 @@ func (r *ApplicationResource) Schema(ctx context.Context, req resource.SchemaReq
 				Computed:            true,
 				Default:             stringdefault.StaticString("Description not configured"),
 			},
+			"priority": schema.StringAttribute{
+				MarkdownDescription: "Priority of the application",
+				Optional:            true,
+				Computed:            true,
+				Default:             stringdefault.StaticString("1"),
+			},
 			"id": schema.StringAttribute{
+				Computed:            true,
+				MarkdownDescription: "Application identifier",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"token": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Application identifier",
 				PlanModifiers: []planmodifier.String{
@@ -77,9 +97,6 @@ func (r *ApplicationResource) Configure(ctx context.Context, req resource.Config
 		tflog.Info(ctx, "No informations provided")
 		return
 	}
-	tflog.Info(ctx, "+++++++++++++++")
-
-	tflog.Info(ctx, fmt.Sprintf("%T", req.ProviderData))
 
 	client, ok := req.ProviderData.(*http.Client)
 
@@ -98,30 +115,92 @@ func (r *ApplicationResource) Configure(ctx context.Context, req resource.Config
 func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data ApplicationResourceModel
 
-	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 
-	// tflog.Info(ctx, "------ Inside Create ")
-
-	// tflog.Info(ctx, "NAME: "+data.Name.String())
-	// tflog.Info(ctx, "DESC"+data.Description.String())
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// If applicable, this is a great opportunity to initialize any necessary
-	// provider client data and make a call using it.
-	// httpResp, err := r.client.Do(httpReq)
+	url := strings.Trim(Config.Url.String(), "\"")
+	token := strings.Trim(Config.Token.String(), "\"")
+
+	// httpReq, err := http.NewRequest("POST", url+"/application", nil)
 	// if err != nil {
-	//     resp.Diagnostics.AddError("Client Error", fmt.Sprintf("Unable to create Application, got error: %s", err))
-	//     return
+	// 	tflog.Error(ctx, err.Error())
+	// 	resp.Diagnostics.AddError("API Error when contacting Gotify instance", err.Error())
+	// 	return
 	// }
 
-	// For the purposes of this Application code, hardcoding a response value to
-	// save into the Terraform state.
-	data.Id = types.StringValue("Application-id")
+	priority, err := strconv.Atoi(strings.Trim(data.Priority.String(), "\""))
+	if err != nil {
+		tflog.Error(ctx, err.Error())
+		resp.Diagnostics.AddError("Priority cannot be parsed as Int", err.Error())
+		return
+	}
 
-	tflog.Trace(ctx, "created a resource")
+	reqData := map[string]interface{}{
+		"defaultPriority": priority,
+		"description":     data.Description.String(),
+		"name":            data.Name.String(),
+	}
+
+	jsonData, err := json.Marshal(reqData)
+	if err != nil {
+		tflog.Error(ctx, err.Error())
+		resp.Diagnostics.AddError("API Error when contacting Gotify instance", err.Error())
+		return
+	}
+
+	httpReq, err = http.NewRequest("POST", url+"/application", bytes.NewBuffer(jsonData))
+	if err != nil {
+		tflog.Error(ctx, err.Error())
+		resp.Diagnostics.AddError("API Error when contacting Gotify instance", err.Error())
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-Gotify-Key", token)
+
+	httpRes, err := r.client.Do(httpReq)
+	if err != nil {
+		tflog.Error(ctx, err.Error())
+		resp.Diagnostics.AddError("API Error when contacting Gotify instance", err.Error())
+		return
+	}
+	defer httpRes.Body.Close()
+
+	statusCode := httpRes.StatusCode
+
+	if statusCode == 401 {
+		bodyBytes, _ := ioutil.ReadAll(httpRes.Body)
+		bodyString := string(bodyBytes)
+
+		resp.Diagnostics.AddError("Not Allowed", fmt.Sprintf("Bad token (?) : %s", bodyString))
+		return
+	} else if statusCode != 200 {
+		bodyBytes, _ := ioutil.ReadAll(httpRes.Body)
+		bodyString := string(bodyBytes)
+
+		resp.Diagnostics.AddError("API Error when contacting Gotify instance", fmt.Sprintf("Received a %s response code : %s", strconv.Itoa(statusCode), bodyString))
+		return
+	}
+
+	type Response struct {
+		ID       int    `json:"id"`
+		Token    string `json:"token"`
+		Internal bool   `json:"internal"`
+	}
+	var respData Response
+
+	err = json.NewDecoder(httpRes.Body).Decode(&respData)
+	if err != nil {
+		resp.Diagnostics.AddError("API Error when contacting Gotify instance", "Failed to decode response body")
+		return
+	}
+
+	data.Id = types.StringValue(strconv.Itoa(respData.ID))
+	data.Token = types.StringValue(respData.Token)
+
+	tflog.Info(ctx, "created a resource")
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -174,7 +253,6 @@ func (r *ApplicationResource) Update(ctx context.Context, req resource.UpdateReq
 func (r *ApplicationResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var data ApplicationResourceModel
 
-	// Read Terraform prior state data into the model
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {

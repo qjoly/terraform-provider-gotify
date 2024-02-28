@@ -6,12 +6,14 @@ package provider
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Ensure GotifyProvider satisfies various provider interfaces.
@@ -31,6 +33,9 @@ type GotifyProviderModel struct {
 	Url   types.String `tfsdk:"url"`
 }
 
+// variable contains provider configuration
+var Config GotifyProviderModel
+
 func (p *GotifyProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "gotify"
 	resp.Version = p.version
@@ -45,7 +50,7 @@ func (p *GotifyProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 				Optional:            false,
 			},
 			"url": schema.StringAttribute{
-				MarkdownDescription: "Example provider attribute",
+				MarkdownDescription: "URL for Gotify Instance",
 				Required:            true,
 			},
 		},
@@ -61,11 +66,42 @@ func (p *GotifyProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	// Configuration values are now available.
-	// if data.Endpoint.IsNull() { /* ... */ }
-
-	// Example client configuration for data sources and resources
+	url := strings.Trim(data.Url.String(), "\"")
+	token := strings.Trim(data.Token.String(), "\"")
+	// priority := data.Priority
 	client := http.DefaultClient
+
+	httpReq, err := http.NewRequest("GET", url+"/application", nil)
+	if err != nil {
+		tflog.Error(ctx, err.Error())
+		resp.Diagnostics.AddError("API Error when contacting Gotify instance", err.Error())
+		return
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-Gotify-Key", token)
+
+	httpRes, err := client.Do(httpReq)
+	if err != nil {
+		resp.Diagnostics.AddError("Can't contact Gotify Instance", err.Error())
+		return
+	}
+	tflog.Info(ctx, "OK")
+
+	defer httpRes.Body.Close()
+
+	statusCode := httpRes.StatusCode
+
+	if statusCode == 401 {
+		resp.Diagnostics.AddError("Not Allowed", "Bad token (?)")
+		return
+	} else if statusCode != 200 {
+		resp.Diagnostics.AddError("API Error when contacting Gotify instance", "Received a non-200 response code")
+		return
+	}
+
+	Config = data
+
 	resp.DataSourceData = client
 	resp.ResourceData = client
 }
