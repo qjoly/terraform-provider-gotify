@@ -151,7 +151,7 @@ func (r *ApplicationResource) Create(ctx context.Context, req resource.CreateReq
 		return
 	}
 
-	httpReq, err = http.NewRequest("POST", url+"/application", bytes.NewBuffer(jsonData))
+	httpReq, err := http.NewRequest("POST", url+"/application", bytes.NewBuffer(jsonData))
 	if err != nil {
 		tflog.Error(ctx, err.Error())
 		resp.Diagnostics.AddError("API Error when contacting Gotify instance", err.Error())
