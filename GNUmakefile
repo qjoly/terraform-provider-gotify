@@ -25,4 +25,6 @@ example: install
 	cd terraform-gotify-test && \
 		rm -rf .terraform .terraform.lock.hcl terraform.tfstate && \
 		terraform init && \
-		TF_LOG=INFO terraform apply -auto-approve
+		TF_LOG=INFO terraform apply -auto-approve && \
+		sleep 2 && \
+		TF_LOGO=INFO terraform destroy -auto-approve

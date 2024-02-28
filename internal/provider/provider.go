@@ -86,7 +86,6 @@ func (p *GotifyProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		resp.Diagnostics.AddError("Can't contact Gotify Instance", err.Error())
 		return
 	}
-	tflog.Info(ctx, "OK")
 
 	defer httpRes.Body.Close()
 
