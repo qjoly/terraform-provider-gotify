@@ -1,4 +1,4 @@
-module github.com/hashicorp/terraform-provider-scaffolding-framework
+module github.com/qjoly/terraform-provider-gotify
 
 go 1.20
 
