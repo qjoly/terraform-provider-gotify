@@ -22,3 +22,7 @@ resource "gotify_application" "app2" {
   description = "Je veux une nouvelle description pour mon application"
   name = "app2"
 }
+
+data "gotify_application" "test" {
+  id = "32"
+}

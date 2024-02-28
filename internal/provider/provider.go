@@ -113,7 +113,7 @@ func (p *GotifyProvider) Resources(ctx context.Context) []func() resource.Resour
 
 func (p *GotifyProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		NewExampleDataSource,
+		NewApplicationDataSource,
 	}
 }
 
